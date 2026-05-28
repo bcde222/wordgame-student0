@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>学生端</title>
+<style>
+*{box-sizing:border-box;font-family:Microsoft YaHei}
+body{background:#0f172a;color:#fff;text-align:center;padding:30px}
+#name{padding:12px 20px;font-size:18px;width:280px;margin:10px;border-radius:8px;border:none}
+#nameWrapper{margin-bottom:30px}
+#question{font-size:42px;font-weight:bold;margin:30px 0}
+#answerInput{padding:15px 20px;font-size:22px;width:60%;border-radius:8px;border:none;margin:10px 0;display:none}
+#raceBtn{padding:20px 40px;font-size:24px;background:#e53935;color:white;border:none;border-radius:12px;width:80%;cursor:pointer}
+#raceBtn:disabled{background:#777;cursor:not-allowed}
+#submitBtn{padding:15px 30px;font-size:20px;background:#4a6cf7;color:white;border:none;border-radius:8px;margin:10px;display:none;cursor:pointer}
+.opt{padding:16px;font-size:20px;margin:8px;width:70%;border-radius:10px;border:none;background:#4a6cf7;cursor:pointer}
+.opt:disabled{background:#777;cursor:not-allowed}
+#msg{font-size:26px;margin:20px;color:yellow}
+#options{display:none}
+#correctAnswer{font-size:24px;margin:15px;color:#ffab00}
+</style>
+</head>
+<body>
+<div id="nameWrapper">
+  <h1>英语抢答</h1>
+  <input id="name" placeholder="请输入姓名（必填）" autocomplete="off">
+  <button onclick="confirmName()">确认姓名</button>
+</div>
+
+<div id="mainContent" style="display:none">
+  <div id="question">等待出题...</div>
+  <input type="text" id="answerInput" placeholder="请输入答案">
+  <button id="submitBtn" onclick="submitAnswer()">提交答案</button>
+  
+  <div id="options">
+    <button class="opt" onclick="check('A')">A: <span id="optA"></span></button>
+    <button class="opt" onclick="check('B')">B: <span id="optB"></span></button>
+    <button class="opt" onclick="check('C')">C: <span id="optC"></span></button>
+    <button class="opt" onclick="check('D')">D: <span id="optD"></span></button>
+  </div>
+
+  <button id="raceBtn" onclick="doRace()">点击抢答</button>
+  <div id="msg"></div>
+  <div id="correctAnswer"></div>
+</div>
+
+<script>
+let myName = "";
+let optionsLoaded = false;
+
+// 确认姓名
+function confirmName(){
+  const name = document.getElementById("name").value.trim();
+  if(!name){
+    alert("姓名不能为空！");
+    return;
+  }
+  myName = name;
+  localStorage.setItem("studentName", myName);
+  document.getElementById("nameWrapper").style.display = "none";
+  document.getElementById("mainContent").style.display = "block";
+}
+
+// 渲染页面
+function render(){
+  const q = localStorage.getItem("q") || "等待出题...";
+  const mode = localStorage.getItem("mode");
+  const lock = localStorage.getItem("lock")==="1";
+  const raced = localStorage.getItem("raced")==="1";
+  const user = localStorage.getItem("user");
+  const result = localStorage.getItem("result");
+  const answer = localStorage.getItem("answer");
+
+  document.getElementById("question").innerText = q;
+  document.getElementById("raceBtn").disabled = lock;
+  
+  const msgBox = document.getElementById("msg");
+  const optBox = document.getElementById("options");
+  const answerInput = document.getElementById("answerInput");
+  const submitBtn = document.getElementById("submitBtn");
+  const correctAnswerBox = document.getElementById("correctAnswer");
+  
+  msgBox.innerText = "";
+  correctAnswerBox.innerText = "";
+
+  // 已答完题，显示结果
+  if(result){
+    answerInput.style.display = "none";
+    submitBtn.style.display = "none";
+    optBox.style.display = "none";
+    
+    if(result==="correct"){
+      msgBox.innerText = "✅ 回答正确！";
+    }else{
+      msgBox.innerText = "❌ 回答错误！";
+      correctAnswerBox.innerText = `正确答案：${answer}`;
+    }
+    return;
+  }
+
+  // 已抢答
+  if(raced){
+    if(user === myName){
+      msgBox.innerText = "🏆 你抢到了答题权！";
+      if(mode === "fill"){
+        // 挖空题
+        if(!optionsLoaded){
+          let correct = localStorage.getItem("correctPart");
+          document.getElementById("optA").innerText = correct;
+          document.getElementById("optB").innerText = correct[0]+correct[1]+correct[1];
+          document.getElementById("optC").innerText = correct[0]+correct[2]+correct[2];
+          document.getElementById("optD").innerText = correct[1]+correct[1]+correct[2];
+          optionsLoaded = true;
+        }
+        optBox.style.display = "block";
+        answerInput.style.display = "none";
+        submitBtn.style.display = "none";
+      }else{
+        // 英译汉/汉译英 → 显示输入框
+        answerInput.style.display = "block";
+        submitBtn.style.display = "block";
+        optBox.style.display = "none";
+      }
+    }else{
+      msgBox.innerText = `🏆 ${user} 抢到了答题权`;
+      answerInput.style.display = "none";
+      submitBtn.style.display = "none";
+      optBox.style.display = "none";
+    }
+  }else{
+    answerInput.style.display = "none";
+    submitBtn.style.display = "none";
+    optBox.style.display = "none";
+  }
+}
+
+// 提交答案
+function submitAnswer(){
+  if(!myName){
+    alert("请先输入姓名！");
+    return;
+  }
+  const studentAnswer = document.getElementById("answerInput").value.trim();
+  const correctAnswer = localStorage.getItem("answer");
+  
+  if(!studentAnswer){
+    alert("请输入答案！");
+    return;
+  }
+
+  localStorage.setItem("studentAnswer", studentAnswer);
+  const isCorrect = studentAnswer.toLowerCase().replace(/\s+/g,"") 
+    === correctAnswer.toLowerCase().replace(/\s+/g,"");
+    
+  localStorage.setItem("result", isCorrect ? "correct" : "wrong");
+  render();
+}
+
+// 挖空答题
+function check(sel){
+  let correct = localStorage.getItem("correctPart");
+  let val = document.getElementById("opt"+sel).innerText;
+  let res = val === correct ? "correct" : "wrong";
+  localStorage.setItem("studentAnswer", val);
+  localStorage.setItem("result", res);
+  render();
+}
+
+// 抢答
+function doRace(){
+  if(localStorage.getItem("lock")==="1") return;
+  localStorage.setItem("lock","1");
+  localStorage.setItem("raced","1");
+  localStorage.setItem("user", myName);
+  optionsLoaded = false;
+  render();
+}
+
+// 自动填充姓名
+window.onload = function(){
+  const savedName = localStorage.getItem("studentName");
+  if(savedName){
+    document.getElementById("name").value = savedName;
+  }
+  setInterval(render, 300);
+};
+</script>
+</body>
+</html>
